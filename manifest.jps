@@ -14,13 +14,19 @@ globals:
   user: jelastic${fn.random(1000)}
   password: ${fn.password}
   tomcat: 9.0.12-jdk-10.0.2
+  javaengine: jdk-10.0.2
   jenkins: 2.150.2
   
 nodes:
   - cloudlets: 8
     nodeType: tomcat
     displayName: Master 
-    tag: ${globals.tomcat}      
+    tag: ${globals.tomcat}
+
+  - cloudlets: 8
+    nodeType: javaengine
+    displayName: Build node
+    tag: ${globals.javaengine}   
 
 skipNodeEmails: true
 
