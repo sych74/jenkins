@@ -62,5 +62,11 @@ actions:
     cmd[slaves]: |-
       iptables -I INPUT -p tcp -s ${nodes.cp.master.intIP} --dport 22 -j ACCEPT;
     user: root
+   
+   readPublicKeyFromMaster:
+    - script: |
+        return jelastic.env.file.Read('${env.envName}', session, '/opt/tomcat/temp/.ssh/id_rsa.pub', null, null, ${nodes.cp.master.id});
+    - setGlobals:
+        publicKey: ${response.body}
 
 success: /text/success.md
