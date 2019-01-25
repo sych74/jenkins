@@ -25,7 +25,7 @@ nodes:
 
   - cloudlets: 8
     nodeType: javaengine
-    nodeGroup: Slaves
+    nodeGroup: slaves
     displayName: Build node
     tag: ${globals.javaengine}   
 
