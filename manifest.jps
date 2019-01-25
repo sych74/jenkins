@@ -68,5 +68,9 @@ actions:
         return jelastic.env.file.Read('${env.envName}', session, '/opt/tomcat/temp/.ssh/id_rsa.pub', null, null, ${nodes.cp.master.id});
     - setGlobals:
         publicKey: ${response.body}
+        
+   addSlaveIptablesRules:
+    cmd[slaves]: |-
+      echo ${globals.publicKey} >> /home/jelastic/.ssh/authorized_keys;
 
 success: /text/success.md
