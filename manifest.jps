@@ -73,6 +73,6 @@ actions:
         
    addPublicKeyToSlaves:
     cmd[slaves]: |-
-      echo ${globals.publicKey} >> /home/jelastic/.ssh/authorized_keys;
+      echo "${globals.publicKey}" >> /home/jelastic/.ssh/authorized_keys;
 
 success: /text/success.md
