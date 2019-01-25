@@ -41,7 +41,7 @@ onInstall:
   - setup
   - addSlaveIptablesRules
   - readPublicKeyFromMaster
-  - addSlaveIptablesRules
+  - addPublicKeyToSlaves
 
 actions:
    setup:
@@ -71,7 +71,7 @@ actions:
     - setGlobals:
         publicKey: ${response.body}
         
-   addSlaveIptablesRules:
+   addPublicKeyToSlaves:
     cmd[slaves]: |-
       echo ${globals.publicKey} >> /home/jelastic/.ssh/authorized_keys;
 
