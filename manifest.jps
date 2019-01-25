@@ -40,6 +40,8 @@ onInstall:
       archive: http://mirrors.jenkins-ci.org/war-stable/${globals.jenkins}/jenkins.war
   - setup
   - addSlaveIptablesRules
+  - readPublicKeyFromMaster
+  - addSlaveIptablesRules
 
 actions:
    setup:
