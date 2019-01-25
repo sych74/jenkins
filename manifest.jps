@@ -14,7 +14,7 @@ globals:
   user: jelastic${fn.random(1000)}
   password: ${fn.password}
   tomcat: 9.0.12-jdk-10.0.2
-  jenkins: 2.150.1
+  jenkins: 2.150.2
   
 nodes:
   - cloudlets: 8
