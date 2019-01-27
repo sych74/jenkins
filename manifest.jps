@@ -64,7 +64,7 @@ actions:
         wget ${baseUrl}/conf/sample.xml -O sample.xml
         xmlstarlet ed --inplace -u "com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey/privateKeySource/privateKey" -v "$(cat .ssh/id_rsa)" sample.xml 2>/dev/null;
         cat sample.xml | java -jar $jar -s http://localhost -auth ${globals.user}:${globals.password} create-credentials-by-xml "SystemCredentialsProvider::SystemContextResolver::jenkins" "(global)"
-        rm -f sample.xml
+        #rm -f sample.xml
 
    addSlaveIptablesRules:
     cmd[slaves]: |-
@@ -81,6 +81,6 @@ actions:
     - cmd[slaves]: |-
         echo "${globals.publicKey}" >> /home/jelastic/.ssh/authorized_keys;
     - cmd[cp]: |-
-        ssh-keyscan -H ${nodes.slaves.master.id} >> ~/.ssh/known_hosts
+        ssh-keyscan -H ${nodes.slaves.master.intIP} >> ~/.ssh/known_hosts
 
 success: /text/success.md
