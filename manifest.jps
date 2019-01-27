@@ -63,7 +63,7 @@ actions:
         echo -e "\n"|ssh-keygen -t rsa -N ""
         wget ${baseUrl}/conf/sample.xml -O sample.xml
         xmlstarlet ed --inplace -u "com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey/privateKeySource/privateKey" -v "$(cat .ssh/id_rsa)" sample.xml 2>/dev/null;
-        cat sample.xml | java -jar /opt/tomcat/webapps/ROOT/WEB-INF/jenkins-cli.jar -s http://localhost -auth jelastic535:ZP1T5KJbz4 create-credentials-by-xml "SystemCredentialsProvider::SystemContextResolver::jenkins" "(global)"
+        cat sample.xml | java -jar $jar -s http://localhost -auth ${globals.user}:${globals.password} create-credentials-by-xml "SystemCredentialsProvider::SystemContextResolver::jenkins" "(global)"
         rm -f sample.xml
 
    addSlaveIptablesRules:
