@@ -45,20 +45,26 @@ onInstall:
 
 actions:
    setup:
-    cmd[cp]: |-
-      while [[ $(curl -s -w "%{http_code}" http://localhost:8080/ -o /dev/null) != "403" ]]; do echo "."; sleep 2; done
-      pswd=$(cat ~/.jenkins/secrets/initialAdminPassword)
-      jar=${STACK_PATH}/webapps/ROOT/WEB-INF/jenkins-cli.jar
-      cmd="java -jar $jar -auth admin:$pswd -s http://localhost:8080/"
-      until $(echo 'jenkins.model.Jenkins.instance.securityRealm.createAccount("${globals.user}", "${globals.password}")' | $cmd groovy =); do echo "repeat..."; sleep 2; done
-      printf "<?xml version='1.1' encoding='UTF-8'?>\n<jenkins.model.JenkinsLocationConfiguration>\n\t<adminAddress>${user.email}</adminAddress>\n\t<jenkinsUrl>${env.protocol}://${env.domain}/</jenkinsUrl>\n</jenkins.model.JenkinsLocationConfiguration>" > ~/.jenkins/jenkins.model.JenkinsLocationConfiguration.xml
-      wget ${baseUrl}/conf/plugins.txt -O plugins.txt
-      while read p; do names="${p%% *} $names"; done < plugins.txt;
-      #declare -a arr=($names); for i in "${arr[@]}"; do $cmd install-plugin $i; done
-      $cmd install-plugin $names;
-      sed -i 's|>NEW<|>RUNNING<|g' ~/.jenkins/config.xml
-      sudo service tomcat restart
-      echo -e "\n"|ssh-keygen -t rsa -N ""
+    - cmd [cp]: |-
+        yum -y install xmlstarlet;
+      user: root
+    - cmd[cp]: |-
+        while [[ $(curl -s -w "%{http_code}" http://localhost:8080/ -o /dev/null) != "403" ]]; do echo "."; sleep 2; done
+        pswd=$(cat ~/.jenkins/secrets/initialAdminPassword)
+        jar=${STACK_PATH}/webapps/ROOT/WEB-INF/jenkins-cli.jar
+        cmd="java -jar $jar -auth admin:$pswd -s http://localhost:8080/"
+        until $(echo 'jenkins.model.Jenkins.instance.securityRealm.createAccount("${globals.user}", "${globals.password}")' | $cmd groovy =); do echo "repeat..."; sleep 2; done
+        printf "<?xml version='1.1' encoding='UTF-8'?>\n<jenkins.model.JenkinsLocationConfiguration>\n\t<adminAddress>${user.email}</adminAddress>\n\t<jenkinsUrl>${env.protocol}://${env.domain}/</jenkinsUrl>\n</jenkins.model.JenkinsLocationConfiguration>" > ~/.jenkins/jenkins.model.JenkinsLocationConfiguration.xml
+        wget ${baseUrl}/conf/plugins.txt -O plugins.txt
+        while read p; do names="${p%% *} $names"; done < plugins.txt;
+        $cmd install-plugin $names;
+        sed -i 's|>NEW<|>RUNNING<|g' ~/.jenkins/config.xml
+        sudo service tomcat restart
+        echo -e "\n"|ssh-keygen -t rsa -N ""
+        wget ${baseUrl}/conf/sample.xml -O sample.xml
+        xmlstarlet ed --inplace -u "com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey/privateKeySource/privateKey" -v "$(cat .ssh/id_rsa)" sample.xml 2>/dev/null;
+        cat sample.xml | java -jar /opt/tomcat/webapps/ROOT/WEB-INF/jenkins-cli.jar -s http://localhost -auth jelastic535:ZP1T5KJbz4 create-credentials-by-xml "SystemCredentialsProvider::SystemContextResolver::jenkins" "(global)"
+        rm -f sample.xml
 
    addSlaveIptablesRules:
     cmd[slaves]: |-
@@ -72,9 +78,9 @@ actions:
         publicKey: ${response.body}
         
    addPublicKeyToSlaves:
-    cmd[slaves]: |-
-      echo "${globals.publicKey}" >> /home/jelastic/.ssh/authorized_keys;
-    cmd[cp]: |-
-      ssh-keyscan -H ${nodes.slaves.master.id} >> ~/.ssh/known_hosts
+    - cmd[slaves]: |-
+        echo "${globals.publicKey}" >> /home/jelastic/.ssh/authorized_keys;
+    - cmd[cp]: |-
+        ssh-keyscan -H ${nodes.slaves.master.id} >> ~/.ssh/known_hosts
 
 success: /text/success.md
