@@ -74,5 +74,7 @@ actions:
    addPublicKeyToSlaves:
     cmd[slaves]: |-
       echo "${globals.publicKey}" >> /home/jelastic/.ssh/authorized_keys;
+    cmd[cp]: |-
+      ssh-keyscan -H ${nodes.slaves.master.id} >> ~/.ssh/known_hosts
 
 success: /text/success.md
