@@ -63,9 +63,10 @@ actions:
         sudo service tomcat restart
         sleep 120
         echo -e "\n"|ssh-keygen -t rsa -N ""
-        wget ${baseUrl}/conf/sample.xml -O sample.xml
-        xmlstarlet ed --inplace -u "com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey/privateKeySource/privateKey" -v "$(cat .ssh/id_rsa)" sample.xml 2>/dev/null;
-        cat sample.xml | java -jar $jar -s http://localhost -auth ${globals.user}:${globals.password} create-credentials-by-xml "SystemCredentialsProvider::SystemContextResolver::jenkins" "(global)"
+        wget ${baseUrl}/conf/credentials.xml -O credentials.xml
+        xmlstarlet ed --inplace -u "com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey/privateKeySource/privateKey" -v "$(cat .ssh/id_rsa)" credentials.xml 2>/dev/null;
+        cat credentials.xml | java -jar $jar -s http://localhost -auth ${globals.user}:${globals.password} create-credentials-by-xml "SystemCredentialsProvider::SystemContextResolver::jenkins" "(global)"
+        rm -f credentials.xml
 
    addSlaveIptablesRules:
     cmd[slaves]: |-
@@ -86,22 +87,10 @@ actions:
         
    connectSlave:
     - cmd[cp]: |-
-        cat <<EOF | java -jar /opt/tomcat/webapps/ROOT/WEB-INF/jenkins-cli.jar -s http://localhost -auth ${globals.user}:${globals.password} create-node node${nodes.slaves.master.id}
-        <slave>
-        <name>node${nodes.slaves.master.id}</name>
-        <remoteFS>/home/jelastic/</remoteFS>
-        <numExecutors>1</numExecutors>
-        <mode>NORMAL</mode>
-        <retentionStrategy class="hudson.slaves.RetentionStrategy$Always"/>
-        <launcher class="hudson.plugins.sshslaves.SSHLauncher" plugin="ssh-slaves@1.5">
-        <host>${nodes.slaves.master.intIP}</host>
-        <port>22</port>
-        <credentialsId>worker</credentialsId>
-        </launcher>
-        <label>node${nodes.slaves.master.id}</label>
-        <nodeProperties/>
-        <userId>700</userId>
-        </slave>
-        EOF
+        wget ${baseUrl}/conf/worker.xml -O worker.xml
+        xmlstarlet ed --inplace -u "slave/name" -v "node${nodes.slaves.master.id}" worker.xml 2>/dev/null;
+        xmlstarlet ed --inplace -u "slave/launcher/host" -v "${nodes.slaves.master.intIP}" worker.xml 2>/dev/null;
+        xmlstarlet ed --inplace -u "slave/label" -v "node${nodes.slaves.master.id}" worker.xml 2>/dev/null;
+        cat worker.xml | java -jar /opt/tomcat/webapps/ROOT/WEB-INF/jenkins-cli.jar -s http://localhost -auth ${globals.user}:${globals.password} create-node node${nodes.slaves.master.id}
 
 success: /text/success.md
