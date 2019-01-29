@@ -17,14 +17,6 @@ globals:
   javaengine: jdk-10.0.2
   jenkins: 2.150.2
   
-fields:
-  - type: spinner
-    name: nodes
-    caption: Number of build nodes
-    min: 1
-    max: 10
-    default: 2
-  
 nodes:
   - cloudlets: 8
     nodeType: tomcat
@@ -42,7 +34,21 @@ nodes:
 
 skipNodeEmails: true
 
-onBeforeInit: return {result:0, ssl:!!jelastic.billing.account.GetQuotas('environment.jelasticssl.enabled').array[0].value}
+onBeforeInit: |
+  return {
+    result : 0,
+    ssl:!!jelastic.billing.account.GetQuotas('environment.jelasticssl.enabled').array[0].value,
+    settings : {
+      "fields": [ {
+        "type": "spinner",
+        "name": "nodes",
+        "caption": "Number of builders",
+        "min": 1,
+        "max": 10,
+        "default": 2
+      }]
+    }
+  }
 
 onInstall: 
   - deploy:
@@ -52,6 +58,17 @@ onInstall:
   - setup
   - readPublicKeyFromMaster
   - forEach(slave:nodes.slaves):
+      - addSlaveIptablesRules:
+          slaveNodeId: ${@slave.id}
+      - addPublicKeyToSlave:
+          slaveNodeId: ${@slave.id}
+          slaveNodeIp: ${@slave.intIP}
+      - connectSlave:
+          slaveNodeId: ${@slave.id}
+          slaveNodeIp: ${@slave.intIP}
+          
+onAfterServiceScaleOut[slaves]:
+  - forEach(slave:event.response.nodes):
       - addSlaveIptablesRules:
           slaveNodeId: ${@slave.id}
       - addPublicKeyToSlave:
