@@ -68,7 +68,7 @@ onInstall:
           slaveNodeIp: ${@slave.intIP}
           
 onAfterServiceScaleOut[slaves]:
-  - forEach(slave:nodes.slaves):
+  - forEach(slave:event.response.nodes):
       - addSlaveIptablesRules:
           slaveNodeId: ${@slave.id}
       - addPublicKeyToSlave:
