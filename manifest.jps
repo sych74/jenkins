@@ -56,13 +56,6 @@ onInstall:
       context: ROOT
       archive: http://mirrors.jenkins-ci.org/war-stable/${globals.jenkins}/jenkins.war
   - setupMaster
-  - if (jelastic.env.control.SetNodeGroupDisplayName):
-    - api: env.control.SetNodeGroupDisplayName
-      nodeGroup: slaves
-      displayName: Builders
-    - api: env.control.SetNodeGroupDisplayName
-      nodeGroup: cp
-      displayName: Jenkins node
   - setNodeDisplayName[cp]: Jenkins
   - setNodeDisplayName[slaves]: Builder
   - readPublicKeyFromMaster
