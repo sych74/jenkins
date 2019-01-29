@@ -17,6 +17,14 @@ globals:
   javaengine: jdk-10.0.2
   jenkins: 2.150.2
   
+fields:
+  - type: spinner
+    name: nodes
+    caption: Number of build nodes
+    min: 1
+    max: 10
+    default: 2
+  
 nodes:
   - cloudlets: 8
     nodeType: tomcat
@@ -27,7 +35,10 @@ nodes:
     nodeType: javaengine
     nodeGroup: slaves
     displayName: Build node
-    tag: ${globals.javaengine}   
+    tag: ${globals.javaengine} 
+    count: ${settings.nodes}
+    scalingMode: stateless
+    diskLimit: 20G
 
 skipNodeEmails: true
 
@@ -39,10 +50,16 @@ onInstall:
       context: ROOT
       archive: http://mirrors.jenkins-ci.org/war-stable/${globals.jenkins}/jenkins.war
   - setup
-  - addSlaveIptablesRules
   - readPublicKeyFromMaster
-  - addPublicKeyToSlave
-  - connectSlave
+  - forEach(slave:nodes.slaves):
+      - addSlaveIptablesRules:
+          slaveNodeId: ${@slave.id}
+      - addPublicKeyToSlave:
+          slaveNodeId: ${@slave.id}
+          slaveNodeIp: ${@slave.intIP}
+      - connectSlave:
+          slaveNodeId: ${@slave.id}
+          slaveNodeIp: ${@slave.intIP}
 
 actions:
    setup:
@@ -69,7 +86,7 @@ actions:
         rm -f credentials.xml
 
    addSlaveIptablesRules:
-    cmd[slaves]: |-
+    cmd[${this.slaveNodeId}]: |-
       iptables -I INPUT -p tcp -s ${nodes.cp.master.intIP} --dport 22 -j ACCEPT;
     user: root
    
@@ -80,20 +97,20 @@ actions:
         publicKey: ${response.body}
         
    addPublicKeyToSlave:
-    - cmd[slaves]: |-
+    - cmd[${this.slaveNodeId}]: |-
         echo "${globals.publicKey}" >> /home/jelastic/.ssh/authorized_keys;
-    - cmd[cp]: |-
-        ssh-keyscan -H ${nodes.slaves.master.intIP} >> ~/.ssh/known_hosts
+    - cmd[nodes.cp.master.id]: |-
+        ssh-keyscan -H ${this.slaveNodeIp} >> ~/.ssh/known_hosts
         
    connectSlave:
-    - cmd[cp]: |-
+    - cmd[nodes.cp.master.id]: |-
         pswd=$(cat ~/.jenkins/secrets/initialAdminPassword)
         jar=${STACK_PATH}/webapps/ROOT/WEB-INF/jenkins-cli.jar
         wget ${baseUrl}/conf/worker.xml -O worker.xml
-        xmlstarlet ed --inplace -u "slave/name" -v "node${nodes.slaves.master.id}" worker.xml 2>/dev/null;
-        xmlstarlet ed --inplace -u "slave/launcher/host" -v "${nodes.slaves.master.intIP}" worker.xml 2>/dev/null;
-        xmlstarlet ed --inplace -u "slave/label" -v "node${nodes.slaves.master.id}" worker.xml 2>/dev/null;
-        cat worker.xml | java -jar $jar -s http://localhost -auth admin:$pswd create-node node${nodes.slaves.master.id}
+        xmlstarlet ed --inplace -u "slave/name" -v "node${this.slaveNodeId}" worker.xml 2>/dev/null;
+        xmlstarlet ed --inplace -u "slave/launcher/host" -v "${this.slaveNodeIp}" worker.xml 2>/dev/null;
+        xmlstarlet ed --inplace -u "slave/label" -v "node${this.slaveNodeId}" worker.xml 2>/dev/null;
+        cat worker.xml | java -jar $jar -s http://localhost -auth admin:$pswd create-node node${this.slaveNodeId}
         rm -f worker.xml
 
 success: /text/success.md
