@@ -69,14 +69,10 @@ onInstall:
           
 onAfterServiceScaleOut[slaves]:
   - forEach(slave:event.response.nodes):
-      - addSlaveIptablesRules:
+      - removeSlave:
           slaveNodeId: ${@slave.id}
-      - addPublicKeyToSlave:
-          slaveNodeId: ${@slave.id}
-          slaveNodeIp: ${@slave.intIP}
-      - connectSlave:
-          slaveNodeId: ${@slave.id}
-          slaveNodeIp: ${@slave.intIP}
+          
+onBeforeServiceScaleIn[slaves]:
 
 actions:
    setup:
@@ -129,5 +125,11 @@ actions:
         xmlstarlet ed --inplace -u "slave/label" -v "node${this.slaveNodeId}" worker.xml 2>/dev/null;
         cat worker.xml | java -jar $jar -s http://localhost -auth admin:$pswd create-node node${this.slaveNodeId}
         rm -f worker.xml
+   
+   removeSlave:
+     - cmd[${nodes.cp.master.id}]: |-
+        pswd=$(cat ~/.jenkins/secrets/initialAdminPassword)
+        jar=${STACK_PATH}/webapps/ROOT/WEB-INF/jenkins-cli.jar
+        java -jar $jar -s http://localhost -auth admin:$pswd delete-node node${this.slaveNodeId}
 
 success: /text/success.md
