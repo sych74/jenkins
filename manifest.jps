@@ -68,11 +68,20 @@ onInstall:
           slaveNodeIp: ${@slave.intIP}
           
 onAfterServiceScaleOut[slaves]:
+  - forEach(slave:nodes.slaves):
+      - addSlaveIptablesRules:
+          slaveNodeId: ${@slave.id}
+      - addPublicKeyToSlave:
+          slaveNodeId: ${@slave.id}
+          slaveNodeIp: ${@slave.intIP}
+      - connectSlave:
+          slaveNodeId: ${@slave.id}
+          slaveNodeIp: ${@slave.intIP}
+          
+onBeforeServiceScaleIn[slaves]:
   - forEach(slave:event.response.nodes):
       - removeSlave:
           slaveNodeId: ${@slave.id}
-          
-onBeforeServiceScaleIn[slaves]:
 
 actions:
    setup:
