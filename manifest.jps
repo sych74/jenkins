@@ -59,16 +59,16 @@ onInstall:
   - setNodeDisplayName[cp]: Jenkins
   - setNodeDisplayName[slaves]: Builder
   - readPublicKeyFromMaster
-      - initSlave:
-          slaveNodeId: ${@slave.id}
-          slaveNodeIp: ${@slave.intIP}
+  - initSlave:
+      slaveNodeId: ${@slave.id}
+      slaveNodeIp: ${@slave.intIP}
           
 onAfterScaleOut[slaves]:
   - setNodeDisplayName[slaves]: Builder
   - forEach(slave:event.response.nodes):
-      - initSlave:
-          slaveNodeId: ${@slave.id}
-          slaveNodeIp: ${@slave.intIP}
+  - initSlave:
+      slaveNodeId: ${@slave.id}
+      slaveNodeIp: ${@slave.intIP}
           
 onBeforeScaleIn[slaves]:
   - forEach(slave:event.response.nodes):
