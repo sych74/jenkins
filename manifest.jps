@@ -41,7 +41,7 @@ onInstall:
   - setup
   - addSlaveIptablesRules
   - readPublicKeyFromMaster
-  - addPublicKeyToSlaves
+  - addPublicKeyToSlave
   - connectSlave
 
 actions:
@@ -61,11 +61,11 @@ actions:
         $cmd install-plugin $names;
         sed -i 's|>NEW<|>RUNNING<|g' ~/.jenkins/config.xml
         sudo service tomcat restart
-        sleep 120
+        while [[ $(curl -s -w "%{http_code}" http://localhost:8080/ -o /dev/null) != "403" ]]; do echo "."; sleep 2; done
         echo -e "\n"|ssh-keygen -t rsa -N ""
         wget ${baseUrl}/conf/credentials.xml -O credentials.xml
         xmlstarlet ed --inplace -u "com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey/privateKeySource/privateKey" -v "$(cat .ssh/id_rsa)" credentials.xml 2>/dev/null;
-        cat credentials.xml | java -jar $jar -s http://localhost -auth ${globals.user}:${globals.password} create-credentials-by-xml "SystemCredentialsProvider::SystemContextResolver::jenkins" "(global)"
+        cat credentials.xml | java -jar $jar -s http://localhost -auth admin:$pswd create-credentials-by-xml "SystemCredentialsProvider::SystemContextResolver::jenkins" "(global)"
         rm -f credentials.xml
 
    addSlaveIptablesRules:
@@ -79,7 +79,7 @@ actions:
     - setGlobals:
         publicKey: ${response.body}
         
-   addPublicKeyToSlaves:
+   addPublicKeyToSlave:
     - cmd[slaves]: |-
         echo "${globals.publicKey}" >> /home/jelastic/.ssh/authorized_keys;
     - cmd[cp]: |-
@@ -87,10 +87,13 @@ actions:
         
    connectSlave:
     - cmd[cp]: |-
+        pswd=$(cat ~/.jenkins/secrets/initialAdminPassword)
+        jar=${STACK_PATH}/webapps/ROOT/WEB-INF/jenkins-cli.jar
         wget ${baseUrl}/conf/worker.xml -O worker.xml
         xmlstarlet ed --inplace -u "slave/name" -v "node${nodes.slaves.master.id}" worker.xml 2>/dev/null;
         xmlstarlet ed --inplace -u "slave/launcher/host" -v "${nodes.slaves.master.intIP}" worker.xml 2>/dev/null;
         xmlstarlet ed --inplace -u "slave/label" -v "node${nodes.slaves.master.id}" worker.xml 2>/dev/null;
-        cat worker.xml | java -jar /opt/tomcat/webapps/ROOT/WEB-INF/jenkins-cli.jar -s http://localhost -auth ${globals.user}:${globals.password} create-node node${nodes.slaves.master.id}
+        cat worker.xml | java -jar $jar -s http://localhost -auth admin:$pswd create-node node${nodes.slaves.master.id}
+        rm -f worker.xml
 
 success: /text/success.md
