@@ -26,7 +26,7 @@ nodes:
   - cloudlets: 8
     nodeType: javaengine
     nodeGroup: slaves
-    displayName: Build node
+    displayName: Build nodes
     tag: ${globals.javaengine} 
     count: ${settings.nodes}
     scalingMode: stateless
