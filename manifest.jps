@@ -99,11 +99,11 @@ actions:
    addPublicKeyToSlave:
     - cmd[${this.slaveNodeId}]: |-
         echo "${globals.publicKey}" >> /home/jelastic/.ssh/authorized_keys;
-    - cmd[nodes.cp.master.id]: |-
+    - cmd[${nodes.cp.master.id}]: |-
         ssh-keyscan -H ${this.slaveNodeIp} >> ~/.ssh/known_hosts
         
    connectSlave:
-    - cmd[nodes.cp.master.id]: |-
+    - cmd[${nodes.cp.master.id}]: |-
         pswd=$(cat ~/.jenkins/secrets/initialAdminPassword)
         jar=${STACK_PATH}/webapps/ROOT/WEB-INF/jenkins-cli.jar
         wget ${baseUrl}/conf/worker.xml -O worker.xml
