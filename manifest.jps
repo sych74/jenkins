@@ -66,25 +66,14 @@ onInstall:
   - setNodeDisplayName[cp]: Jenkins
   - setNodeDisplayName[slaves]: Builder
   - readPublicKeyFromMaster
-  - forEach(slave:nodes.slaves):
-      - addSlaveIptablesRules:
-          slaveNodeId: ${@slave.id}
-      - addPublicKeyToSlave:
-          slaveNodeId: ${@slave.id}
-          slaveNodeIp: ${@slave.intIP}
-      - connectSlave:
+      - initSlave:
           slaveNodeId: ${@slave.id}
           slaveNodeIp: ${@slave.intIP}
           
 onAfterScaleOut[slaves]:
   - setNodeDisplayName[slaves]: Builder
   - forEach(slave:event.response.nodes):
-      - addSlaveIptablesRules:
-          slaveNodeId: ${@slave.id}
-      - addPublicKeyToSlave:
-          slaveNodeId: ${@slave.id}
-          slaveNodeIp: ${@slave.intIP}
-      - connectSlave:
+      - initSlave:
           slaveNodeId: ${@slave.id}
           slaveNodeIp: ${@slave.intIP}
           
@@ -116,11 +105,6 @@ actions:
         xmlstarlet ed --inplace -u "com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey/privateKeySource/privateKey" -v "$(cat .ssh/id_rsa)" credentials.xml 2>/dev/null;
         cat credentials.xml | java -jar $jar -s http://localhost -auth admin:$pswd create-credentials-by-xml "SystemCredentialsProvider::SystemContextResolver::jenkins" "(global)"
         rm -f credentials.xml
-
-   addSlaveIptablesRules:
-    cmd[${this.slaveNodeId}]: |-
-      iptables -I INPUT -p tcp -s ${nodes.cp.master.intIP} --dport 22 -j ACCEPT;
-    user: root
    
    readPublicKeyFromMaster:
     - script: |
@@ -128,13 +112,14 @@ actions:
     - setGlobals:
         publicKey: ${response.body}
         
-   addPublicKeyToSlave:
+   initSlave:
+    - cmd[${this.slaveNodeId}]: |-
+        iptables -I INPUT -p tcp -s ${nodes.cp.master.intIP} --dport 22 -j ACCEPT;
+      user: root
     - cmd[${this.slaveNodeId}]: |-
         echo "${globals.publicKey}" >> /home/jelastic/.ssh/authorized_keys;
     - cmd[${nodes.cp.master.id}]: |-
         ssh-keyscan -H ${this.slaveNodeIp} >> ~/.ssh/known_hosts
-        
-   connectSlave:
     - cmd[${nodes.cp.master.id}]: |-
         pswd=$(cat ~/.jenkins/secrets/initialAdminPassword)
         jar=${STACK_PATH}/webapps/ROOT/WEB-INF/jenkins-cli.jar
