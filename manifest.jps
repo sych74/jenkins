@@ -32,23 +32,18 @@ nodes:
     scalingMode: stateless
     diskLimit: 20G
 
+settings:
+  fields:  
+  - type: spinner
+    name: nodes
+    caption: Number of builders
+    min: 1
+    max: 10
+    default: 2
+
 skipNodeEmails: true
 
-onBeforeInit: |
-  return {
-    result : 0,
-    ssl:!!jelastic.billing.account.GetQuotas('environment.jelasticssl.enabled').array[0].value,
-    settings : {
-      "fields": [ {
-        "type": "spinner",
-        "name": "nodes",
-        "caption": "Number of builders",
-        "min": 1,
-        "max": 10,
-        "default": 2
-      }]
-    }
-  }
+onBeforeInit: return {result:0, ssl:!!jelastic.billing.account.GetQuotas('environment.jelasticssl.enabled').array[0].value}
 
 onInstall: 
   - deploy:
