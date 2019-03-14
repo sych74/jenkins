@@ -15,7 +15,7 @@ globals:
   password: ${fn.password}
   tomcat: 9.0.12-jdk-10.0.2
   javaengine: jdk-10.0.2
-  jenkins: 2.150.2
+  jenkins: 2.150.3
   
 nodes:
   - cloudlets: 8
