@@ -45,7 +45,8 @@ skipNodeEmails: true
 
 onBeforeInit: return {result:0, ssl:!!jelastic.billing.account.GetQuotas('environment.jelasticssl.enabled').array[0].value}
 
-onInstall: 
+onInstall:
+  - prepareMaster
   - deploy:
       name: jenkins-${globals.jenkins}.war
       context: ROOT
@@ -72,10 +73,13 @@ onBeforeScaleIn[slaves]:
         slaveNodeId: ${@slave.id}
 
 actions:
-   setupMaster:
+   prepareMaster:
     - cmd [cp]: |-
         yum -y install xmlstarlet;
+        xmlstarlet ed --inplace -s Context -t elem -n 'Resources cachingAllowed="true" cacheMaxSize="40960"' /opt/tomcat/conf/context.xml;
+        service tomcat restart;
       user: root
+   setupMaster:
     - cmd[cp]: |-
         while [[ $(curl -s -w "%{http_code}" http://localhost:8080/ -o /dev/null) != "403" ]]; do echo "."; sleep 2; done
         pswd=$(cat ~/.jenkins/secrets/initialAdminPassword)
