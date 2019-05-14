@@ -15,7 +15,7 @@ globals:
   password: ${fn.password}
   tomcat: 9.0.12-jdk-10.0.2
   javaengine: jdk-10.0.2
-  jenkins: 2.150.3
+  jenkins: latest
   
 nodes:
   - cloudlets: 8
@@ -26,7 +26,7 @@ nodes:
   - cloudlets: 8
     nodeType: javaengine
     nodeGroup: slaves
-    displayName: Build nodes
+    displayName: Workers
     tag: ${globals.javaengine} 
     count: ${settings.nodes}
     scalingMode: stateless
@@ -36,7 +36,7 @@ settings:
   fields:  
   - type: spinner
     name: nodes
-    caption: Number of builders
+    caption: Workers
     min: 1
     max: 10
     default: 2
@@ -52,68 +52,66 @@ onInstall:
       context: ROOT
       archive: http://mirrors.jenkins-ci.org/war-stable/${globals.jenkins}/jenkins.war
   - setupMaster
-  - setNodeDisplayName[cp]: Jenkins
-  - setNodeDisplayName[slaves]: Builder
   - readPublicKeyFromMaster
-  - forEach(slave:nodes.slaves):
-    - initSlave:
-        slaveNodeId: ${@slave.id}
-        slaveNodeIp: ${@slave.intIP}
+  - forEach(nodes.slaves):
+      initSlave:
+        publicKey: ${response.body}
+        slaveNodeId: ${@i.id}
+        slaveNodeIp: ${@i.intIP}
           
 onAfterScaleOut[slaves]:
-  - setNodeDisplayName[slaves]: Builder
-  - forEach(slave:event.response.nodes):
-    - initSlave:
-        slaveNodeId: ${@slave.id}
-        slaveNodeIp: ${@slave.intIP}
+  - readPublicKeyFromMaster
+  - forEach(event.response.nodes):
+      initSlave:
+        publicKey: ${response.body}
+        slaveNodeId: ${@i.id}
+        slaveNodeIp: ${@i.intIP}
           
 onBeforeScaleIn[slaves]:
-  - forEach(slave:event.response.nodes):
-    - removeSlave:
-        slaveNodeId: ${@slave.id}
+  forEach(event.response.nodes):
+    removeSlave:
+      slaveNodeId: ${@i.id}
 
 actions:
    prepareMaster:
-    - cmd [cp]: |-
-        yum -y install xmlstarlet;
-        xmlstarlet ed --inplace -s Context -t elem -n 'Resources cachingAllowed="true" cacheMaxSize="40960"' /opt/tomcat/conf/context.xml;
-        service tomcat restart;
-      user: root
+    cmd[cp]: |-
+      yum -y install xmlstarlet;
+      xmlstarlet ed --inplace -s Context -t elem -n 'Resources cachingAllowed="true" cacheMaxSize="40960"' /opt/tomcat/conf/context.xml;
+      service tomcat restart;
+    user: root
    setupMaster:
-    - cmd[cp]: |-
-        while [[ $(curl -s -w "%{http_code}" http://localhost:8080/ -o /dev/null) != "403" ]]; do echo "."; sleep 2; done
-        pswd=$(cat ~/.jenkins/secrets/initialAdminPassword)
-        jar=${STACK_PATH}/webapps/ROOT/WEB-INF/jenkins-cli.jar
-        cmd="java -jar $jar -auth admin:$pswd -s http://localhost:8080/"
-        until $(echo 'jenkins.model.Jenkins.instance.securityRealm.createAccount("${globals.user}", "${globals.password}")' | $cmd groovy =); do echo "repeat..."; sleep 2; done
-        printf "<?xml version='1.1' encoding='UTF-8'?>\n<jenkins.model.JenkinsLocationConfiguration>\n\t<adminAddress>${user.email}</adminAddress>\n\t<jenkinsUrl>${env.protocol}://${env.domain}/</jenkinsUrl>\n</jenkins.model.JenkinsLocationConfiguration>" > ~/.jenkins/jenkins.model.JenkinsLocationConfiguration.xml
-        wget ${baseUrl}/conf/plugins.txt -O plugins.txt
-        while read p; do names="${p%% *} $names"; done < plugins.txt;
-        $cmd install-plugin $names;
-        sed -i 's|>NEW<|>RUNNING<|g' ~/.jenkins/config.xml
-        sudo service tomcat restart
-        while [[ $(curl -s -w "%{http_code}" http://localhost:8080/ -o /dev/null) != "403" ]]; do echo "."; sleep 2; done
-        echo -e "\n"|ssh-keygen -t rsa -N ""
-        wget ${baseUrl}/conf/credentials.xml -O credentials.xml
-        xmlstarlet ed --inplace -u "com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey/privateKeySource/privateKey" -v "$(cat .ssh/id_rsa)" credentials.xml 2>/dev/null;
-        cat credentials.xml | java -jar $jar -s http://localhost -auth admin:$pswd create-credentials-by-xml "SystemCredentialsProvider::SystemContextResolver::jenkins" "(global)"
-        rm -f credentials.xml
+    cmd[cp]: |-
+      while [[ $(curl -s -w "%{http_code}" http://localhost:8080/ -o /dev/null) != "403" ]]; do echo "."; sleep 2; done
+      pswd=$(cat ~/.jenkins/secrets/initialAdminPassword)
+      jar=${STACK_PATH}/webapps/ROOT/WEB-INF/jenkins-cli.jar
+      cmd="java -jar $jar -auth admin:$pswd -s http://localhost:8080/"
+      until $(echo 'jenkins.model.Jenkins.instance.securityRealm.createAccount("${globals.user}", "${globals.password}")' | $cmd groovy =); do echo "repeat..."; sleep 2; done
+      printf "<?xml version='1.1' encoding='UTF-8'?>\n<jenkins.model.JenkinsLocationConfiguration>\n\t<adminAddress>${user.email}</adminAddress>\n\t<jenkinsUrl>${env.protocol}://${env.domain}/</jenkinsUrl>\n</jenkins.model.JenkinsLocationConfiguration>" > ~/.jenkins/jenkins.model.JenkinsLocationConfiguration.xml
+      wget ${baseUrl}/conf/plugins.txt -O plugins.txt
+      while read p; do names="${p%% *} $names"; done < plugins.txt;
+      $cmd install-plugin $names;
+      sed -i 's|>NEW<|>RUNNING<|g' ~/.jenkins/config.xml
+      sudo service tomcat restart
+      while [[ $(curl -s -w "%{http_code}" http://localhost:8080/ -o /dev/null) != "403" ]]; do echo "."; sleep 2; done
+      echo -e "\n"|ssh-keygen -t rsa -N ""
+      wget ${baseUrl}/conf/credentials.xml -O credentials.xml
+      xmlstarlet ed --inplace -u "com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey/privateKeySource/privateKey" -v "$(cat .ssh/id_rsa)" credentials.xml 2>/dev/null;
+      cat credentials.xml | java -jar $jar -s http://localhost -auth admin:$pswd create-credentials-by-xml "SystemCredentialsProvider::SystemContextResolver::jenkins" "(global)"
+      rm -f credentials.xml
    
    readPublicKeyFromMaster:
-    - script: |
-        return jelastic.env.file.Read('${env.envName}', session, '/opt/tomcat/temp/.ssh/id_rsa.pub', null, null, ${nodes.cp.master.id});
-    - setGlobals:
-        publicKey: ${response.body}
+    api: env.file.Read
+    path: /opt/tomcat/temp/.ssh/id_rsa.pub
+    nodeid: ${nodes.cp.master.id}
         
    initSlave:
     - cmd[${this.slaveNodeId}]: |-
         iptables -I INPUT -p tcp -s ${nodes.cp.master.intIP} --dport 22 -j ACCEPT;
       user: root
     - cmd[${this.slaveNodeId}]: |-
-        echo "${globals.publicKey}" >> /home/jelastic/.ssh/authorized_keys;
+        echo "${this.publicKey}" >> /home/jelastic/.ssh/authorized_keys;
     - cmd[${nodes.cp.master.id}]: |-
         ssh-keyscan -H ${this.slaveNodeIp} >> ~/.ssh/known_hosts
-    - cmd[${nodes.cp.master.id}]: |-
         pswd=$(cat ~/.jenkins/secrets/initialAdminPassword)
         jar=${STACK_PATH}/webapps/ROOT/WEB-INF/jenkins-cli.jar
         wget ${baseUrl}/conf/worker.xml -O worker.xml
@@ -124,9 +122,9 @@ actions:
         rm -f worker.xml
    
    removeSlave:
-     - cmd[${nodes.cp.master.id}]: |-
-        pswd=$(cat ~/.jenkins/secrets/initialAdminPassword)
-        jar=${STACK_PATH}/webapps/ROOT/WEB-INF/jenkins-cli.jar
-        java -jar $jar -s http://localhost -auth admin:$pswd delete-node node${this.slaveNodeId}
+    cmd[${nodes.cp.master.id}]: |-
+      pswd=$(cat ~/.jenkins/secrets/initialAdminPassword)
+      jar=${STACK_PATH}/webapps/ROOT/WEB-INF/jenkins-cli.jar
+      java -jar $jar -s http://localhost -auth admin:$pswd delete-node node${this.slaveNodeId}
 
 success: /text/success.md
